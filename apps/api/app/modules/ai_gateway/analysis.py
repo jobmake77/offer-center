@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.modules.ai_gateway.client import AIProviderError, request_json_from_kimi
+from app.modules.ai_gateway.client import AIProviderError, request_json_from_provider
 from app.modules.job_intelligence.models import JobPosting
 from app.modules.resume_assets.models import Resume, ResumeVersion
 
@@ -45,7 +45,7 @@ Job description:
 {raw_content}
 """.strip()
 
-    return request_json_from_kimi(system_prompt=system_prompt, user_prompt=user_prompt)
+    return request_json_from_provider(system_prompt=system_prompt, user_prompt=user_prompt)
 
 
 def parse_resume_with_ai(resume_text: str) -> dict[str, Any]:
@@ -77,7 +77,7 @@ Resume text:
 {resume_text}
 """.strip()
 
-    return request_json_from_kimi(system_prompt=system_prompt, user_prompt=user_prompt)
+    return request_json_from_provider(system_prompt=system_prompt, user_prompt=user_prompt)
 
 
 def build_match_report_with_ai(job: JobPosting, resume: Resume | None, resume_version: ResumeVersion) -> dict[str, Any]:
@@ -129,7 +129,7 @@ Resume version content:
 {resume_version.content_json}
 """.strip()
 
-    return request_json_from_kimi(system_prompt=system_prompt, user_prompt=user_prompt)
+    return request_json_from_provider(system_prompt=system_prompt, user_prompt=user_prompt)
 
 
 __all__ = [

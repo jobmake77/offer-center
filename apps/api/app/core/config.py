@@ -13,6 +13,10 @@ class Settings(BaseSettings):
     moonshot_base_url: str = "https://api.moonshot.ai/v1"
     moonshot_model: str = "kimi-k2.5"
     moonshot_timeout_seconds: int = 60
+    gemini_api_key: str | None = None
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_timeout_seconds: int = 60
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="OFFER_CENTER_")
 

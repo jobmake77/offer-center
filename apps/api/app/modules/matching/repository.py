@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.modules.ai_gateway.analysis import AIProviderError, build_match_report_with_ai
+from app.modules.ai_gateway.client import get_ai_model_label
 from app.modules.job_intelligence.models import JobPosting
 from app.modules.matching.models import MatchReport
 from app.modules.resume_assets.models import Resume, ResumeVersion
@@ -84,7 +85,7 @@ def create_match_report(
             weaknesses=llm_report.get("weaknesses") or [],
             tailored_suggestions=llm_report.get("tailored_suggestions") or [],
             evidence=llm_report.get("evidence") or [],
-            model_version="moonshot:kimi",
+            model_version=get_ai_model_label(),
         )
         session.add(report)
         session.flush()

@@ -1,0 +1,3 @@
+class NotImplementedInScaffoldError(RuntimeError):
+    pass
+

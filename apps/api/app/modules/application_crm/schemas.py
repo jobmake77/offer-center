@@ -1,14 +1,26 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+ApplicationStage = Literal[
+    "draft",
+    "ready_to_apply",
+    "applied",
+    "hr_replied",
+    "interview",
+    "offer",
+    "rejected",
+    "archived",
+]
 
 
 class CreateApplicationPayload(BaseModel):
     job_posting_id: UUID
     resume_version_id: UUID
     source_channel: str
-    current_stage: str = "draft"
+    current_stage: ApplicationStage = "draft"
 
 
 class UpdateApplicationPayload(BaseModel):
@@ -19,7 +31,7 @@ class UpdateApplicationPayload(BaseModel):
 
 
 class UpdateStagePayload(BaseModel):
-    current_stage: str
+    current_stage: ApplicationStage
     event_time: datetime
     note: str | None = None
 

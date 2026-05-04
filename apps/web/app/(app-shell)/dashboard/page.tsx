@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -11,6 +12,15 @@ export default async function DashboardPage() {
       ? overview.top_recommendations
       : [{ id: "fallback", title: "Import the first JD to start the workspace loop." }];
   const operatingMode = overview.ready_to_apply > 0 ? "Execute" : "Prepare";
+  const actionHref = (id: string): Route => {
+    if (id.startsWith("job-")) {
+      return `/jobs/${id.replace("job-", "")}` as Route;
+    }
+    if (id.startsWith("application-")) {
+      return `/applications/${id.replace("application-", "")}` as Route;
+    }
+    return "/jobs/inbox";
+  };
 
   return (
     <>
@@ -105,13 +115,12 @@ export default async function DashboardPage() {
                 <p className="muted">
                   {item.id.startsWith("job-")
                     ? "Open the job decision page, validate fit, and decide whether it deserves a tailored version."
+                    : item.id.startsWith("application-")
+                      ? "Open the application record, confirm the external state, and move the pipeline deliberately."
                     : "Seed the workspace with the next promising JD so the loop can start."}
                 </p>
                 <div className="button-row">
-                  <Link
-                    className="button secondary"
-                    href={item.id.startsWith("job-") ? `/jobs/${item.id.replace("job-", "")}` : "/jobs/inbox"}
-                  >
+                  <Link className="button secondary" href={actionHref(item.id)}>
                     Open task
                   </Link>
                 </div>

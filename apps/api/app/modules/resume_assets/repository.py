@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.modules.resume_assets.models import Resume, ResumeVersion
@@ -33,6 +33,7 @@ def create_resume(
     parsed_json: dict | None = None,
     parser_status: str = "pending",
 ) -> Resume:
+    existing_count = session.scalar(select(func.count()).select_from(Resume).where(Resume.user_id == user_id)) or 0
     resume = Resume(
         user_id=user_id,
         name=Path(filename).stem or "Imported Resume",
@@ -40,6 +41,7 @@ def create_resume(
         parser_status=parser_status,
         parsed_text=parsed_text,
         parsed_json=parsed_json or {"filename": filename, "upload_mode": "manual"},
+        is_master=existing_count == 0,
     )
     session.add(resume)
     session.flush()

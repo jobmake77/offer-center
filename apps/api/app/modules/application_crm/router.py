@@ -16,7 +16,10 @@ from app.modules.application_crm.schemas import (
 )
 from app.modules.identity.service import ensure_user
 from app.modules.job_intelligence.models import JobPosting
+from app.modules.job_intelligence.repository import get_job_for_user
+from app.modules.matching.repository import get_resume_version_for_match
 from app.shared.contracts import Envelope
+from app.shared.models import utcnow
 
 router = APIRouter(tags=["application-crm"])
 
@@ -28,6 +31,52 @@ def create_application(
     session: Session = Depends(get_db),
 ) -> Envelope[dict[str, str]]:
     ensure_user(session, user_id)
+    job = get_job_for_user(session, user_id, payload.job_posting_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    resume_version = get_resume_version_for_match(
+        session,
+        user_id=user_id,
+        version_id=payload.resume_version_id,
+    )
+    if resume_version is None:
+        raise HTTPException(status_code=404, detail="Resume version not found")
+
+    if resume_version.job_posting_id is not None and resume_version.job_posting_id != job.id:
+        raise HTTPException(status_code=400, detail="Resume version is linked to a different job")
+
+    existing = session.scalar(
+        select(Application).where(
+            Application.user_id == user_id,
+            Application.job_posting_id == payload.job_posting_id,
+        )
+    )
+    if existing is not None:
+        if existing.resume_version_id is None:
+            existing.resume_version_id = payload.resume_version_id
+        if existing.current_stage == "draft" and payload.current_stage != "draft":
+            existing.current_stage = payload.current_stage
+            session.add(
+                ApplicationEvent(
+                    application_id=existing.id,
+                    event_type="stage_changed",
+                    event_time=utcnow(),
+                    payload={
+                        "current_stage": payload.current_stage,
+                        "note": "Application promoted from the job decision flow.",
+                    },
+                )
+            )
+        session.commit()
+        return Envelope(
+            data={
+                "application_id": str(existing.id),
+                "job_posting_id": str(existing.job_posting_id),
+                "status": "existing",
+            }
+        )
+
     application = Application(
         user_id=user_id,
         job_posting_id=payload.job_posting_id,
@@ -37,8 +86,26 @@ def create_application(
     )
     session.add(application)
     session.flush()
+    session.add(
+        ApplicationEvent(
+            application_id=application.id,
+            event_type="application_created",
+            event_time=utcnow(),
+            payload={
+                "current_stage": payload.current_stage,
+                "source_channel": payload.source_channel,
+                "resume_version_id": str(payload.resume_version_id),
+            },
+        )
+    )
     session.commit()
-    return Envelope(data={"application_id": str(application.id), "job_posting_id": str(payload.job_posting_id)})
+    return Envelope(
+        data={
+            "application_id": str(application.id),
+            "job_posting_id": str(payload.job_posting_id),
+            "status": "created",
+        }
+    )
 
 
 @router.get("/applications", response_model=Envelope[list[dict]])
@@ -75,15 +142,19 @@ def get_application(
     session: Session = Depends(get_db),
 ) -> Envelope[dict]:
     ensure_user(session, user_id)
-    application = session.scalar(
-        select(Application).where(
+    result = session.execute(
+        select(Application, JobPosting.title)
+        .join(JobPosting, Application.job_posting_id == JobPosting.id, isouter=True)
+        .where(
             Application.user_id == user_id,
             Application.id == application_id,
         )
     )
-    if application is None:
+    row = result.first()
+    if row is None:
         raise HTTPException(status_code=404, detail="Application not found")
 
+    application, title = row
     events = list(
         session.scalars(
             select(ApplicationEvent)
@@ -95,6 +166,8 @@ def get_application(
         data={
             "id": str(application.id),
             "job_posting_id": str(application.job_posting_id),
+            "job_title": title or "Imported Job",
+            "company_name": "Unknown Company",
             "current_stage": application.current_stage,
             "linked_assets": [],
             "linked_events": [

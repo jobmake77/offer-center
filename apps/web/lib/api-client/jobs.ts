@@ -22,8 +22,12 @@ export type JobDetail = {
   title: string;
   structured_jd: Record<string, unknown>;
   company_summary: Record<string, unknown>;
-  current_application_summary: Record<string, unknown> | null;
-  latest_match_report_summary: Record<string, unknown> | null;
+  current_application_summary: {
+    id: string;
+    current_stage: string;
+    resume_version_id: string | null;
+  } | null;
+  latest_match_report_summary: MatchReport | null;
 };
 
 export function getJob(jobId: string) {

@@ -51,10 +51,42 @@ def get_dashboard_overview_for_user(session: Session, user_id: UUID) -> dict:
         )
     ) or 0
 
-    top_jobs = list(
+    due_followups = list(
+        session.execute(
+            select(Application.id, JobPosting.title)
+            .join(JobPosting, Application.job_posting_id == JobPosting.id)
+            .where(
+                Application.user_id == user_id,
+                Application.next_followup_at.is_not(None),
+                Application.next_followup_at <= end_of_today,
+            )
+            .order_by(Application.next_followup_at.asc())
+            .limit(2)
+        )
+    )
+
+    ready_applications = list(
+        session.execute(
+            select(Application.id, JobPosting.title)
+            .join(JobPosting, Application.job_posting_id == JobPosting.id)
+            .where(
+                Application.user_id == user_id,
+                Application.current_stage == "ready_to_apply",
+            )
+            .order_by(Application.updated_at.desc())
+            .limit(3)
+        )
+    )
+
+    jobs_without_application = list(
         session.execute(
             select(JobPosting.id, JobPosting.title)
+            .outerjoin(
+                Application,
+                (Application.job_posting_id == JobPosting.id) & (Application.user_id == user_id),
+            )
             .where(JobPosting.user_id == user_id, JobPosting.status == "active")
+            .where(Application.id.is_(None))
             .order_by(
                 JobPosting.freshness_score.desc().nullslast(),
                 JobPosting.quality_score.desc().nullslast(),
@@ -63,13 +95,23 @@ def get_dashboard_overview_for_user(session: Session, user_id: UUID) -> dict:
             .limit(3)
         )
     )
+    top_recommendations = [
+        {"id": f"application-{application_id}", "title": f"Send or advance {title}"}
+        for application_id, title in ready_applications
+    ]
+    top_recommendations.extend(
+        {"id": f"application-{application_id}", "title": f"Follow up on {title}"}
+        for application_id, title in due_followups
+        if f"application-{application_id}" not in {item["id"] for item in top_recommendations}
+    )
+    top_recommendations.extend(
+        {"id": f"job-{job_id}", "title": f"Review {title}"} for job_id, title in jobs_without_application
+    )
 
     return {
         "new_jobs_24h": int(new_jobs_24h),
         "ready_to_apply": int(ready_to_apply),
         "followups_due_today": int(followups_due_today),
         "interviews_upcoming": int(interviews_upcoming),
-        "top_recommendations": [
-            {"id": f"job-{job_id}", "title": f"Review {title}"} for job_id, title in top_jobs
-        ],
+        "top_recommendations": top_recommendations[:5],
     }

@@ -27,10 +27,19 @@ export default async function JobDetailPage({
     getResumesSafe(),
     getResumeVersionsSafe({ jobPostingId: jobId })
   ]);
-  const latestReport = reports[0];
+  const latestReport = reports[0] ?? job.latest_match_report_summary;
   const latestOverallScore = latestReport ? String(Math.round(latestReport.scores.overall)) : "Pending";
+  const applicationSummary = job.current_application_summary;
   const workflowState =
-    resumeVersions.length > 0 ? "Ready to score" : resumes.length > 0 ? "Needs tailored version" : "Needs source resume";
+    applicationSummary
+      ? "In pipeline"
+      : latestReport
+        ? "Ready to apply"
+        : resumeVersions.length > 0
+          ? "Ready to score"
+          : resumes.length > 0
+            ? "Needs tailored version"
+            : "Needs source resume";
 
   return (
     <>
@@ -58,7 +67,11 @@ export default async function JobDetailPage({
       <div className="grid three">
         <SummaryCard title="Latest fit score" value={latestOverallScore} hint="The most recent match score generated for this role." tone="accent" />
         <SummaryCard title="Source resumes" value={String(resumes.length)} hint="Baseline resumes that can still be tailored for this opportunity." />
-        <SummaryCard title="Job-linked versions" value={String(resumeVersions.length)} hint="Targeted versions already prepared for this role." />
+        <SummaryCard
+          title="Pipeline state"
+          value={applicationSummary ? applicationSummary.current_stage : String(resumeVersions.length)}
+          hint={applicationSummary ? "This role already has an application record." : "Targeted versions already prepared for this role."}
+        />
       </div>
       <div className="grid two">
         <section className="card strong hero-panel stack">
@@ -196,6 +209,20 @@ export default async function JobDetailPage({
           {resumeVersions.length === 0 ? (
             <div className="empty-state">
               <p className="helper-copy">No job-linked resume versions exist yet. Create one first from the left panel.</p>
+            </div>
+          ) : applicationSummary ? (
+            <div className="empty-state">
+              <p className="helper-copy">
+                This role is already tracked in the application pipeline at stage {applicationSummary.current_stage}.
+              </p>
+              <div className="button-row">
+                <Link className="button secondary" href={`/applications/${applicationSummary.id}`}>
+                  Open application
+                </Link>
+                <Link className="button ghost" href="/applications/board">
+                  View board
+                </Link>
+              </div>
             </div>
           ) : (
             <>

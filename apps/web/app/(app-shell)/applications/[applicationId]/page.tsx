@@ -29,12 +29,12 @@ export default async function ApplicationDetailPage({
     <>
       <PageHeader
         eyebrow="Application Detail"
-        title={`Application ${application.id}`}
+        title={application.job_title}
         description="This route should combine timeline events, generated assets, contact context, and the next follow-up."
         meta={[
           { label: "Current stage", value: currentStageLabel },
           { label: "Events", value: String(application.linked_events.length) },
-          { label: "Linked job", value: application.job_posting_id.slice(0, 8) }
+          { label: "Company", value: application.company_name }
         ]}
         actions={
           <div className="button-row">

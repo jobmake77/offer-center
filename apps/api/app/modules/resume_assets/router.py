@@ -7,6 +7,7 @@ from app.modules.ai_gateway.analysis import AIProviderError, parse_resume_with_a
 from app.core.db import get_db
 from app.core.security import get_current_user_id
 from app.modules.identity.service import ensure_user
+from app.modules.job_intelligence.repository import get_job_for_user
 from app.modules.resume_assets.repository import (
     create_resume,
     create_resume_version as create_resume_version_record,
@@ -179,6 +180,9 @@ def create_resume_version(
     resume = get_resume_for_user(session, user_id, resume_id)
     if resume is None:
         raise HTTPException(status_code=404, detail="Resume not found")
+
+    if payload.job_posting_id is not None and get_job_for_user(session, user_id, payload.job_posting_id) is None:
+        raise HTTPException(status_code=404, detail="Job not found")
 
     version = create_resume_version_record(
         session,

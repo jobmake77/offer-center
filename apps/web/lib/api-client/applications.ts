@@ -18,6 +18,8 @@ export function getApplicationsSafe() {
 export type ApplicationDetail = {
   id: string;
   job_posting_id: string;
+  job_title: string;
+  company_name: string;
   current_stage: string;
   linked_assets: Array<Record<string, unknown>>;
   linked_events: Array<{
@@ -37,6 +39,8 @@ export function getApplicationSafe(applicationId: string) {
   return safeApiGet<ApplicationDetail>(`/applications/${applicationId}`, {
     id: applicationId,
     job_posting_id: "",
+    job_title: "Unavailable Application",
+    company_name: "Unknown Company",
     current_stage: "unknown",
     linked_assets: [],
     linked_events: [],

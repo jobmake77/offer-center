@@ -1,11 +1,13 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.security import get_current_user_id
 from app.modules.ai_gateway.analysis import AIProviderError, parse_job_with_ai
+from app.modules.application_crm.models import Application
 from app.modules.identity.service import ensure_user
 from app.modules.job_intelligence.repository import create_job_import, get_job_for_user, list_jobs_for_user
 from app.modules.job_intelligence.schemas import (
@@ -14,6 +16,8 @@ from app.modules.job_intelligence.schemas import (
     JobImportUrlPayload,
     JobListItem,
 )
+from app.modules.matching.models import MatchReport
+from app.modules.matching.repository import serialize_match_report
 from app.shared.contracts import Envelope
 from app.shared.tasks import enqueue_task
 
@@ -139,14 +143,39 @@ def get_job(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
 
+    application = session.scalar(
+        select(Application)
+        .where(
+            Application.user_id == user_id,
+            Application.job_posting_id == job.id,
+        )
+        .order_by(Application.updated_at.desc())
+        .limit(1)
+    )
+    latest_report = session.scalar(
+        select(MatchReport)
+        .where(
+            MatchReport.user_id == user_id,
+            MatchReport.job_posting_id == job.id,
+        )
+        .order_by(MatchReport.created_at.desc())
+        .limit(1)
+    )
+
     return Envelope(
         data={
             "id": str(job.id),
             "title": job.title,
             "structured_jd": job.structured_jd,
             "company_summary": {},
-            "current_application_summary": None,
-            "latest_match_report_summary": None,
+            "current_application_summary": {
+                "id": str(application.id),
+                "current_stage": application.current_stage,
+                "resume_version_id": str(application.resume_version_id) if application.resume_version_id else None,
+            }
+            if application
+            else None,
+            "latest_match_report_summary": serialize_match_report(latest_report) if latest_report else None,
         }
     )
 

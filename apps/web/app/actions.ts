@@ -164,19 +164,22 @@ export async function createApplicationAction(formData: FormData) {
   let destination = `/jobs/${jobId}`;
 
   try {
-    const response = await apiPost<{ application_id: string }>(`/applications`, {
+    const response = await apiPost<{ application_id: string; status?: string }>(`/applications`, {
       job_posting_id: jobId,
       resume_version_id: resumeVersionId,
       source_channel: sourceChannel,
-      current_stage: "draft"
+      current_stage: "ready_to_apply"
     });
 
     revalidatePath(`/jobs/${jobId}`);
     revalidatePath("/applications/board");
+    revalidatePath("/dashboard");
     destination = buildFeedbackPath(
       `/applications/${response.application_id}`,
       "success",
-      "Application created successfully."
+      response.status === "existing"
+        ? "Application already exists. Opening the tracked record."
+        : "Application created and marked ready to apply."
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to create application.";

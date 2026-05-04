@@ -91,7 +91,7 @@ def create_job_import(
 def list_jobs_for_user(session: Session, user_id: UUID) -> list[JobPosting]:
     statement = (
         select(JobPosting)
-        .where(JobPosting.user_id == user_id)
+        .where(JobPosting.user_id == user_id, JobPosting.status == "active")
         .order_by(JobPosting.published_at.desc().nullslast(), JobPosting.created_at.desc())
     )
     return list(session.scalars(statement))
